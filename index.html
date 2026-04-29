@@ -1164,7 +1164,7 @@
       <span>📊</span>
       <span class="sheets-url" id="sheets-link">
         <!-- ↓ ВСТАВЬ СЮДА ССЫЛКУ НА СВОЮ GOOGLE ТАБЛИЦУ -->
-        https://docs.google.com/spreadsheets/d/1Y0rkgqh5rI2OjgRCdYOiHpmxNENgqHpHmJhtFwnp44Y/edit
+        https://script.google.com/macros/s/AKfycbz1Odlji5jk-qqR0xFixv7NPPU2veW-jaEwHyXRNrPauxrR8kFIlKvkZZ4f4-L991_K/exec
       </span>
       <span class="sheets-status" id="sync-status">⟳ Синхронизация...</span>
     </div>
@@ -1221,36 +1221,64 @@
 
   // FORM SUBMIT → TELEGRAM
   async function submitForm() {
-    const name = document.getElementById('f-name').value.trim();
-    const phone = document.getElementById('f-phone').value.trim();
+    const name    = document.getElementById('f-name').value.trim();
+    const phone   = document.getElementById('f-phone').value.trim();
     const problem = document.getElementById('f-problem').value.trim();
-    const time = document.getElementById('f-time').value;
+    const time    = document.getElementById('f-time').value;
+    const lang    = window.currentLang || 'ru';
+
+    const alerts = {
+      ru: 'Пожалуйста, заполните обязательные поля (имя, телефон, время)',
+      uz: 'Iltimos, majburiy maydonlarni to\'ldiring (ism, telefon, vaqt)',
+      en: 'Please fill in the required fields (name, phone, time)'
+    };
 
     if (!name || !phone || !time) {
-      alert('Пожалуйста, заполните обязательные поля (имя, телефон, время)');
+      alert(alerts[lang]);
       return;
     }
 
-    // ══ TELEGRAM BOT CONFIG ══
-    // ↓ ЗАМЕНИ НА ТОКЕН СВОЕГО БОТА ДЛЯ УВЕДОМЛЕНИЙ
-    const BOT_TOKEN = 'ВСТАВЬ_ТОКЕН_БОТА_ДЛЯ_УВЕДОМЛЕНИЙ';
-    // ↓ ADMIN ID (уже вставлен твой)
-    const ADMIN_ID = '1064450470';
+    // Показать кнопку загрузки
+    const btn = document.querySelector('.form-submit');
+    const origText = btn.innerHTML;
+    btn.innerHTML = '⏳ Отправляем...';
+    btn.disabled = true;
 
-    const msg = `🦷 Новая запись!\n\n👤 Имя: ${name}\n📞 Телефон: ${phone}\n🕐 Время: ${time}\n📝 Проблема: ${problem || 'не указана'}\n\n✅ Подтвердить запись?`;
+    const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbz1Odlji5jk-qqR0xFixv7NPPU2veW-jaEwHyXRNrPauxrR8kFIlKvkZZ4f4-L991_K/exec';
+    const ADMIN_ID   = '1064450470';
 
+    const payload = { name, phone, problem, time, lang };
+
+    // 1. Отправить в Google Таблицу
     try {
-      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      await fetch(SHEETS_URL, {
         method: 'POST',
+        mode: 'no-cors',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ chat_id: ADMIN_ID, text: msg })
+        body: JSON.stringify(payload)
       });
     } catch(e) {
-      console.log('TG send skipped:', e);
+      console.log('Sheets error:', e);
     }
 
+    // 2. Отправить уведомление в Telegram (если токен задан)
+    const BOT_TOKEN = 'ВСТАВЬ_ТОКЕН_БОТА';  // ← вставь позже
+    if (BOT_TOKEN !== 'ВСТАВЬ_ТОКЕН_БОТА') {
+      const msg = `🦷 Новая запись!\n\n👤 ${name}\n📞 ${phone}\n🕐 ${time}\n📝 ${problem || '—'}\n\n✅ Подтвердить?`;
+      try {
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ chat_id: ADMIN_ID, text: msg })
+        });
+      } catch(e) { console.log('TG error:', e); }
+    }
+
+    // 3. Показать успех
     document.getElementById('form-content').style.display = 'none';
-    document.getElementById('form-success').style.display = 'block';
+    document.getElementById('form-success').style.display  = 'block';
+    btn.innerHTML = origText;
+    btn.disabled  = false;
   }
 
   // CALENDAR
@@ -1315,9 +1343,9 @@
     }
 
     // Обновить статус синхронизации
-    const sheetsUrl = 'https://docs.google.com/spreadsheets/d/ВСТАВЬ_ID_ТАБЛИЦЫ_СЮДА/edit';
-    document.getElementById('sheets-link').textContent = sheetsUrl;
-    document.getElementById('sync-status').textContent = '✓ Готово к синхронизации';
+    const sheetsUrl = 'https://script.google.com/macros/s/AKfycbz1Odlji5jk-qqR0xFixv7NPPU2veW-jaEwHyXRNrPauxrR8kFIlKvkZZ4f4-L991_K/exec';
+    document.getElementById('sheets-link').textContent = 'https://script.google.com/macros/s/AKfycbz1Odlji5jk-qqR0xFixv7NPPU2veW-jaEwHyXRNrPauxrR8kFIlKvkZZ4f4-L991_K/exec';
+    document.getElementById('sync-status').textContent = '✓ Подключено';
   }
 
   function changeMonth(dir) {
